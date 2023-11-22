@@ -55,7 +55,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements OnMapReadyCallback{
     private GoogleMap mMap;
     private FragmentHomeBinding binding;
     HomeViewModel homeViewModel;
@@ -64,23 +64,23 @@ public class HomeFragment extends Fragment {
     private FusedLocationProviderClient fusedLocationProviderClient;
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
-//
+
 //    //online system
     DatabaseReference onlineRef, currentRef, deriverLocationRef;
     GeoFire geoFire;
-//    ValueEventListener onlineValueEventListener = new ValueEventListener() {
-//        @Override
-//        public void onDataChange(@NonNull DataSnapshot snapshot) {
-//            if (snapshot.exists() && currentRef!=null)
-//                currentRef.onDisconnect().removeValue();
-//        }
-//
-//        @Override
-//        public void onCancelled(@NonNull DatabaseError error) {
-//            Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
-//                    .show();
-//        }
-//    };
+    ValueEventListener onlineValueEventListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot snapshot) {
+            if (snapshot.exists() )
+                currentRef.onDisconnect().removeValue();
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+            Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
+                    .show();
+        }
+    };
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -91,36 +91,58 @@ public class HomeFragment extends Fragment {
         View root = binding.getRoot();
 
 
-       // mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-        //mapFragment.getMapAsync(this);
-        //init();
+        mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+        init();
 
         return root;
     }
 
-//    private void init() {
-//        onlineRef = FirebaseDatabase.getInstance().getReference().child(".info/connected");
-//        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+    private void init() {
+        onlineRef = FirebaseDatabase.getInstance().getReference().child(".info/connected");
+        deriverLocationRef=FirebaseDatabase.getInstance().getReference(Common.DRIVER_LOCATION_REFERENCE);
+        currentRef = deriverLocationRef
+                                        .child(FirebaseAuth.getInstance().getCurrentUser().getUid());
+                                geoFire = new GeoFire(deriverLocationRef);
+registerOnlineSystem();
+
+
+        //        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 //            Snackbar.make(getView(), getString(R.string.permission_required), Snackbar.LENGTH_LONG).show();
 //            return;
 //        }
-//
-//
-//        locationRequest = new LocationRequest();
-//        locationRequest.setSmallestDisplacement(10f);
-//        locationRequest.setInterval(5000);
-//        locationRequest.setFastestInterval(3000);
-//        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-//        locationCallback = new LocationCallback() {
-//            @Override
-//            public void onLocationResult(@NonNull LocationResult locationResult) {
-//                super.onLocationResult(locationResult);
-//                LatLng newPosition = new LatLng(locationResult.getLastLocation().getLatitude(),
-//                        locationResult.getLastLocation().getLongitude());
-//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(newPosition, 18f));
-//
-//
-//
+
+
+        locationRequest = new LocationRequest();
+        locationRequest.setSmallestDisplacement(10f);
+        locationRequest.setInterval(5000);
+        locationRequest.setFastestInterval(3000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                LatLng newPosition = new LatLng(locationResult.getLastLocation().getLatitude(),
+                        locationResult.getLastLocation().getLongitude());
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(newPosition, 18f));
+
+
+                geoFire.setLocation(FirebaseAuth.getInstance().getCurrentUser().getUid(),
+                                        new GeoLocation(locationResult.getLastLocation().getLatitude(),
+                                                locationResult.getLastLocation().getLongitude()),
+                                        (key, error) -> {
+                                            if (error != null)
+                                                Snackbar.make(mapFragment.getView(), error.getMessage(), Snackbar.LENGTH_LONG)
+                                                        .show();
+                                            else
+                                                Snackbar.make(mapFragment.getView(), "You are Online", Snackbar.LENGTH_LONG)
+                                                        .show();
+                                        });
+
+
+
+
+
 //                            Geocoder geocoder = new Geocoder(getContext(), Locale.getDefault());
 //                            List<Address> addressList;
 //                            try {
@@ -154,108 +176,108 @@ public class HomeFragment extends Fragment {
 //                            } catch (IOException e) {
 //                                Snackbar.make(getView(), e.getMessage(), Snackbar.LENGTH_LONG).show();
 //                            }
-//
-//
-//
-//
-//
-//            }
-//        };
-//
-//        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getContext());
-//        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            Snackbar.make(getView(), getString(R.string.permission_required), Snackbar.LENGTH_LONG).show();
-//
-//            return;
-//        }
-//        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-//
-//
-//
-//    }
-
-  //  @Override
-//    public void onDestroyView() {
-//        fusedLocationProviderClient.removeLocationUpdates(locationCallback);
-//        geoFire.removeLocation(FirebaseAuth.getInstance().getCurrentUser().getUid());
-//        onlineRef.removeEventListener(onlineValueEventListener);
-//        super.onDestroyView();
-//        binding = null;
-//
-//    }
 
 
-    //@Override
-//    public void onResume() {
-//        super.onResume();
-//        registerOnlineSystem();
-//    }
 
-//    private void registerOnlineSystem() {
-//        onlineRef.addValueEventListener(onlineValueEventListener);
-//    }
 
-//    @Override
-//    public void onMapReady(@NonNull GoogleMap googleMap) {
-//        mMap = googleMap;
-//        //check permission
-//        Dexter.withContext(getContext())
-//                .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-//                .withListener(new PermissionListener() {
-//                    @Override
-//                    public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
-//
-//                        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-//                                && ActivityCompat.checkSelfPermission(getContext(),
-//                                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//                            Snackbar.make(getView(), getString(R.string.permission_required), Snackbar.LENGTH_LONG).show();
-//                            return;
-//                        }
-//                        mMap.setMyLocationEnabled(true);
-//                        mMap.getUiSettings().setMyLocationButtonEnabled(true);
-//                        mMap.setOnMyLocationButtonClickListener(() -> {
-//                            fusedLocationProviderClient.getLastLocation()
-//                                    .addOnFailureListener(e -> {
-//                                        Toast.makeText(getContext(), "" + e.getMessage(), Toast.LENGTH_SHORT).show();
-//                                    })
-//                                    .addOnSuccessListener(location -> {
-//                                        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-//                                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f));
-//                                    });
-//                            return true;
-//                        });
-//
-//                        //set layout button
-//                        View locationButton = ((View) mapFragment.getView().findViewById(Integer.parseInt("1"))
-//                                .getParent())
-//                                .findViewById(Integer.parseInt("2"));
-//                        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) locationButton.getLayoutParams();
-//                        params.addRule(RelativeLayout.ALIGN_PARENT_TOP, 0);
-//                        params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE);
-//                        params.setMargins(0, 0, 0, 50);
-//
-//
-//                    }
-//
-//                    @Override
-//                    public void onPermissionDenied(PermissionDeniedResponse permissionDeniedResponse) {
-//                        Toast.makeText(getContext(), "Permission " + permissionDeniedResponse.getPermissionName() + "" + "was denied!", Toast.LENGTH_SHORT).show();
-//                    }
-//
-//                    @Override
-//                    public void onPermissionRationaleShouldBeShown(PermissionRequest permissionRequest, PermissionToken permissionToken) {
-//
-//                    }
-//                }).check();
-//        try {
-//            boolean success = googleMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(getContext(), R.raw.uber_map_style));
-//            if (!success)
-//                Toast.makeText(getContext(), "Style Parsing error", Toast.LENGTH_SHORT).show();
-//        } catch (Resources.NotFoundException e) {
-//            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-//
-//        }
-//
-//
-//    }
+
+            }
+        };
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getContext());
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Snackbar.make(getView(), getString(R.string.permission_required), Snackbar.LENGTH_LONG).show();
+
+            return;
+        }
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+
+
+
+    }
+
+    @Override
+    public void onDestroyView() {
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback);
+        geoFire.removeLocation(FirebaseAuth.getInstance().getCurrentUser().getUid());
+        onlineRef.removeEventListener(onlineValueEventListener);
+        super.onDestroyView();
+        binding = null;
+
+    }
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        registerOnlineSystem();
+    }
+
+    private void registerOnlineSystem() {
+        onlineRef.addValueEventListener(onlineValueEventListener);
+    }
+
+    @Override
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        mMap = googleMap;
+        //check permission
+        Dexter.withContext(getContext())
+                .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                .withListener(new PermissionListener() {
+                    @Override
+                    public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
+
+                        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                                && ActivityCompat.checkSelfPermission(getContext(),
+                                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            Snackbar.make(getView(), getString(R.string.permission_required), Snackbar.LENGTH_LONG).show();
+                            return;
+                        }
+                        mMap.setMyLocationEnabled(true);
+                        mMap.getUiSettings().setMyLocationButtonEnabled(true);
+                        mMap.setOnMyLocationButtonClickListener(() -> {
+                            fusedLocationProviderClient.getLastLocation()
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(getContext(), "" + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                    })
+                                    .addOnSuccessListener(location -> {
+                                        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18f));
+                                    });
+                            return true;
+                        });
+
+                        //set layout button
+                        View locationButton = ((View) mapFragment.getView().findViewById(Integer.parseInt("1"))
+                                .getParent())
+                                .findViewById(Integer.parseInt("2"));
+                        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) locationButton.getLayoutParams();
+                        params.addRule(RelativeLayout.ALIGN_PARENT_TOP, 0);
+                        params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE);
+                        params.setMargins(0, 0, 0, 50);
+
+
+                    }
+
+                    @Override
+                    public void onPermissionDenied(PermissionDeniedResponse permissionDeniedResponse) {
+                        Toast.makeText(getContext(), "Permission " + permissionDeniedResponse.getPermissionName() + "" + "was denied!", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onPermissionRationaleShouldBeShown(PermissionRequest permissionRequest, PermissionToken permissionToken) {
+
+                    }
+                }).check();
+        try {
+            boolean success = googleMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(getContext(), R.raw.uber_map_style));
+            if (!success)
+                Toast.makeText(getContext(), "Style Parsing error", Toast.LENGTH_SHORT).show();
+        } catch (Resources.NotFoundException e) {
+            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+
+        }
+
+
+    }
 }
